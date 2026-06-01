@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>药化结构式闪卡 · Pharmachem Structures</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #18181c;
+    --surface2: #222228;
+    --border: #2e2e38;
+    --accent: #7c6af7;
+    --accent2: #c084fc;
+    --text: #e8e8f0;
+    --text2: #9898b0;
+    --text3: #5a5a70;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --card-bg: #1c1c22;
+    --card-border: #2a2a35;
+    --flip-dur: 0.55s;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); }
+
+  #app { display: flex; flex-direction: column; height: 100%; max-width: 900px; margin: 0 auto; padding: 0 16px; }
+
+  /* HEADER */
+  header {
+    padding: 18px 0 12px;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif; font-style: italic;
+    font-size: clamp(17px, 3vw, 22px); color: var(--text); letter-spacing: -0.02em;
+  }
+  header h1 span { color: var(--accent2); font-style: normal; }
+  #progress-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); margin-left: auto; }
+
+  /* FILTER BAR */
+  #filter-bar { padding: 10px 0 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #cat-select {
+    background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; font-size: 12px; font-family: inherit;
+    flex: 1; min-width: 160px; max-width: 320px; cursor: pointer;
+  }
+  #cat-select:focus { outline: none; border-color: var(--accent); }
+  .btn {
+    background: var(--surface2); color: var(--text2);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 11px; font-size: 12px; font-family: inherit;
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  #mode-group { display: flex; gap: 3px; }
+
+  /* PROGRESS BAR */
+  #prog-bar-wrap { height: 3px; background: var(--surface2); border-radius: 2px; margin-bottom: 6px; }
+  #prog-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width .4s; }
+
+  /* STATS */
+  #stats-row { display: flex; gap: 14px; padding: 4px 0 8px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); }
+  #stats-row .s-green b { color: var(--green); }
+  #stats-row .s-red b { color: var(--red); }
+  #stats-row .s-yellow b { color: var(--yellow); }
+
+  /* CARD AREA */
+  #card-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; }
+
+  /* FLIP CARD */
+  .flip-scene { width: 100%; max-width: 620px; perspective: 1200px; cursor: pointer; }
+  .flip-card {
+    width: 100%; position: relative; transform-style: preserve-3d;
+    transition: transform var(--flip-dur) cubic-bezier(.4,0,.2,1);
+  }
+  .flip-card.flipped { transform: rotateY(180deg); }
+  .card-face {
+    width: 100%; backface-visibility: hidden;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 16px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 28px 24px; min-height: 290px;
+    box-shadow: 0 4px 40px rgba(0,0,0,.4);
+  }
+  .card-back { position: absolute; top: 0; left: 0; transform: rotateY(180deg); }
+  .flip-scene:hover .card-face { border-color: var(--accent); box-shadow: 0 4px 40px rgba(124,106,247,.15); }
+
+  /* FRONT — drug name only */
+  .front-drug-name {
+    font-size: clamp(20px, 4vw, 30px); font-weight: 500;
+    text-align: center; line-height: 1.35; color: var(--text);
+  }
+  .flip-hint {
+    margin-top: 22px; font-size: 11px; color: var(--text3);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .flip-hint::before { content: '↕'; font-size: 13px; }
+
+  /* BACK — image + category */
+  .back-struct-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+  .back-struct-wrap img {
+    max-width: 100%; max-height: 210px; object-fit: contain;
+    background: white; border-radius: 8px; padding: 10px;
+  }
+  .back-drug-name { font-size: 13px; color: var(--text2); text-align: center; font-family: 'DM Mono', monospace; }
+  .back-category {
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    background: rgba(124,106,247,.15); border: 1px solid rgba(124,106,247,.3);
+    border-radius: 20px; padding: 3px 12px; color: var(--accent2);
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-align: center;
+  }
+  .img-nav { display: flex; gap: 6px; align-items: center; }
+  .img-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); cursor: pointer; transition: background .15s; }
+  .img-dot.active { background: var(--accent2); }
+
+  /* STRUCT→NAME mode */
+  .front-struct-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+  .front-struct-wrap img {
+    max-width: 100%; max-height: 210px; object-fit: contain;
+    background: white; border-radius: 8px; padding: 10px;
+  }
+  .back-name-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .back-name-answer { font-size: clamp(20px, 4vw, 28px); font-weight: 500; text-align: center; color: var(--text); }
+  .back-name-category {
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    background: rgba(124,106,247,.15); border: 1px solid rgba(124,106,247,.3);
+    border-radius: 20px; padding: 3px 12px; color: var(--accent2);
+  }
+
+  /* CONTROLS */
+  #controls { display: flex; gap: 9px; padding: 10px 0 4px; justify-content: center; flex-wrap: wrap; }
+  #controls .btn { font-size: 13px; padding: 9px 17px; border-radius: 10px; }
+  #btn-again { color: var(--red); border-color: rgba(248,113,113,.4); }
+  #btn-again:hover { background: rgba(248,113,113,.1); border-color: var(--red); }
+  #btn-hard { color: var(--yellow); border-color: rgba(251,191,36,.4); }
+  #btn-hard:hover { background: rgba(251,191,36,.08); border-color: var(--yellow); }
+  #btn-good { color: var(--green); border-color: rgba(74,222,128,.4); }
+  #btn-good:hover { background: rgba(74,222,128,.1); border-color: var(--green); }
+  #btn-skip { color: var(--text3); }
+
+  /* DONE */
+  #done-msg { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 40px 20px; text-align: center; }
+  #done-msg .done-icon { font-size: 48px; }
+  #done-msg h2 { font-family: 'Playfair Display', serif; font-size: 22px; }
+  #done-msg p { color: var(--text2); font-size: 13px; max-width: 300px; line-height: 1.6; }
+  #done-msg .btn { background: var(--accent); color: white; border-color: var(--accent); padding: 10px 22px; font-size: 14px; }
+
+  @media (max-width: 480px) {
+    #controls { gap: 6px; }
+    #controls .btn { padding: 8px 12px; font-size: 12px; }
+    .card-face { min-height: 230px; padding: 20px 14px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>药化结构式 <span>Flashcards</span></h1>
+    <span id="progress-text">—</span>
+  </header>
+
+  <div id="filter-bar">
+    <select id="cat-select"><option value="all">全部分类 (276 drugs)</option></select>
+    <div id="mode-group">
+      <button class="btn active" data-mode="name2struct" title="看名称→背结构">名→结构</button>
+      <button class="btn" data-mode="struct2name" title="看结构→背名称">结构→名</button>
+      <button class="btn" data-mode="random">随机</button>
+    </div>
+    <button class="btn" id="btn-shuffle">🔀 打乱</button>
+  </div>
+
+  <div id="prog-bar-wrap"><div id="prog-bar" style="width:0%"></div></div>
+  <div id="stats-row">
+    <span class="s-green">✓ <b id="stat-good">0</b></span>
+    <span class="s-red">✗ <b id="stat-again">0</b></span>
+    <span class="s-yellow">~ <b id="stat-hard">0</b></span>
+    <span>剩 <b id="stat-rem">0</b></span>
+  </div>
+
+  <div id="card-area">
+    <div class="flip-scene" id="flip-scene" onclick="flipCard()">
+      <div class="flip-card" id="flip-card">
+        <div class="card-face card-front" id="card-front"></div>
+        <div class="card-face card-back" id="card-back"></div>
+      </div>
+    </div>
+    <div id="done-msg">
+      <div class="done-icon">🎉</div>
+      <h2>本轮完成！</h2>
+      <p id="done-detail"></p>
+      <button class="btn" id="btn-restart">重新开始</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="btn" id="btn-again" onclick="rate('again')">✗ 不会</button>
+    <button class="btn" id="btn-hard" onclick="rate('hard')">~ 较难</button>
+    <button class="btn" id="btn-good" onclick="rate('good')">✓ 会了</button>
+    <button class="btn" id="btn-skip" onclick="rate('skip')">跳过</button>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+let mode = 'name2struct';
+let allCards = [], deck = [], currentIdx = 0, isFlipped = false;
+let stats = { good:0, again:0, hard:0 };
+let currentEffectiveMode = 'name2struct';
+
+function buildCategories() {
+  const sel = document.getElementById('cat-select');
+  const cats = [...new Set(FLASHCARD_DATA.map(d => d.category))].filter(Boolean);
+  cats.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', resetDeck);
+}
+
+function resetDeck() {
+  const catVal = document.getElementById('cat-select').value;
+  allCards = catVal === 'all' ? [...FLASHCARD_DATA] : FLASHCARD_DATA.filter(d => d.category === catVal);
+  deck = shuffle([...allCards]);
+  currentIdx = 0;
+  stats = { good:0, again:0, hard:0 };
+  document.getElementById('done-msg').style.display = 'none';
+  document.getElementById('flip-scene').style.display = '';
+  document.getElementById('controls').style.display = '';
+  showCard(); updateStats();
+}
+
+function shuffle(arr) {
+  for (let i = arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function showCard() {
+  if (currentIdx >= deck.length) { showDone(); return; }
+  const card = deck[currentIdx];
+  currentEffectiveMode = mode === 'random' ? (Math.random()>.5 ? 'name2struct' : 'struct2name') : mode;
+  isFlipped = false;
+  document.getElementById('flip-card').classList.remove('flipped');
+
+  if (currentEffectiveMode === 'name2struct') {
+    renderFrontName(card);
+    renderBackStruct(card);
+  } else {
+    renderFrontStruct(card);
+    renderBackName(card);
+  }
+  updateProgress();
+}
+
+function renderFrontName(card) {
+  document.getElementById('card-front').innerHTML = `
+    <div class="front-drug-name">${card.drug}</div>
+    <div class="flip-hint">点击翻转查看结构式</div>
+  `;
+}
+
+function renderBackStruct(card) {
+  const imgs = card.images;
+  const imgHtml = imgs.map((src,i) =>
+    `<img src="images/${src}" alt="${card.drug}" style="${i===0?'':'display:none'}" data-idx="${i}">`
+  ).join('');
+  const navHtml = imgs.length > 1
+    ? `<div class="img-nav">${imgs.map((_,i) =>
+        `<span class="img-dot${i===0?' active':''}" data-i="${i}"></span>`
+      ).join('')}</div>` : '';
+  document.getElementById('card-back').innerHTML = `
+    <div class="back-struct-wrap">
+      ${imgHtml}
+      ${navHtml}
+      <div class="back-drug-name">${card.drug}</div>
+      <div class="back-category">${card.category}</div>
+    </div>
+  `;
+  // bind multi-image nav
+  document.querySelectorAll('#card-back .img-dot').forEach(dot => {
+    dot.addEventListener('click', e => { e.stopPropagation(); switchBackImg(parseInt(dot.dataset.i)); });
+  });
+}
+
+function switchBackImg(idx) {
+  document.querySelectorAll('#card-back img').forEach((img,i) => img.style.display = i===idx?'':'none');
+  document.querySelectorAll('#card-back .img-dot').forEach((d,i) => d.classList.toggle('active', i===idx));
+}
+
+function renderFrontStruct(card) {
+  const imgs = card.images;
+  const imgHtml = imgs.map((src,i) =>
+    `<img src="images/${src}" alt="${card.drug}" style="${i===0?'':'display:none'}" data-idx="${i}">`
+  ).join('');
+  const navHtml = imgs.length > 1
+    ? `<div class="img-nav">${imgs.map((_,i) =>
+        `<span class="img-dot${i===0?' active':''}" data-i="${i}"></span>`
+      ).join('')}</div>` : '';
+  document.getElementById('card-front').innerHTML = `
+    <div class="front-struct-wrap">
+      ${imgHtml}
+      ${navHtml}
+      <div class="flip-hint">点击翻转查看药名</div>
+    </div>
+  `;
+  document.querySelectorAll('#card-front .img-dot').forEach(dot => {
+    dot.addEventListener('click', e => { e.stopPropagation(); switchFrontImg(parseInt(dot.dataset.i)); });
+  });
+}
+
+function switchFrontImg(idx) {
+  document.querySelectorAll('#card-front img').forEach((img,i) => img.style.display = i===idx?'':'none');
+  document.querySelectorAll('#card-front .img-dot').forEach((d,i) => d.classList.toggle('active', i===idx));
+}
+
+function renderBackName(card) {
+  document.getElementById('card-back').innerHTML = `
+    <div class="back-name-wrap">
+      <div class="back-name-answer">${card.drug}</div>
+      <div class="back-name-category">${card.category}</div>
+    </div>
+  `;
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('flip-card').classList.toggle('flipped', isFlipped);
+}
+
+function rate(result) {
+  if (currentIdx >= deck.length) return;
+  if (result === 'again') { stats.again++; deck.push(deck[currentIdx]); }
+  else if (result === 'hard') { stats.hard++; deck.splice(Math.min(currentIdx+3, deck.length), 0, deck[currentIdx]); }
+  else if (result === 'good') { stats.good++; }
+  currentIdx++;
+  updateStats(); showCard();
+}
+
+function updateProgress() {
+  const pct = deck.length > 0 ? (Math.min(currentIdx, deck.length)/deck.length*100).toFixed(1) : 0;
+  document.getElementById('prog-bar').style.width = pct+'%';
+  document.getElementById('progress-text').textContent = `${Math.min(currentIdx,allCards.length)} / ${allCards.length} · ${pct}%`;
+}
+function updateStats() {
+  document.getElementById('stat-good').textContent = stats.good;
+  document.getElementById('stat-again').textContent = stats.again;
+  document.getElementById('stat-hard').textContent = stats.hard;
+  document.getElementById('stat-rem').textContent = Math.max(0, deck.length-currentIdx);
+}
+function showDone() {
+  document.getElementById('flip-scene').style.display = 'none';
+  document.getElementById('controls').style.display = 'none';
+  const msg = document.getElementById('done-msg');
+  msg.style.display = 'flex';
+  document.getElementById('done-detail').textContent =
+    `✓ ${stats.good} 已掌握 · ~ ${stats.hard} 较难 · ✗ ${stats.again} 需复习`;
+  updateProgress();
+}
+
+document.querySelectorAll('[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    mode = btn.dataset.mode;
+    document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    resetDeck();
+  });
+});
+document.getElementById('btn-shuffle').addEventListener('click', () => {
+  deck = shuffle([...allCards]); currentIdx = 0; stats={good:0,again:0,hard:0};
+  document.getElementById('done-msg').style.display='none';
+  document.getElementById('flip-scene').style.display='';
+  document.getElementById('controls').style.display='';
+  showCard(); updateStats();
+});
+document.getElementById('btn-restart').addEventListener('click', resetDeck);
+document.addEventListener('keydown', e => {
+  if (e.key===' '||e.key==='Enter') { e.preventDefault(); flipCard(); }
+  else if (e.key==='1') rate('again');
+  else if (e.key==='2') rate('hard');
+  else if (e.key==='3') rate('good');
+  else if (e.key==='4') rate('skip');
+});
+
+buildCategories();
+resetDeck();
+</script>
+</body>
+</html>
